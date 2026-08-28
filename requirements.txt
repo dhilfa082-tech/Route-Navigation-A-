@@ -1,0 +1,4 @@
+# No external dependencies required — uses only the Python standard library.
+# Listed for completeness / future extensions (e.g. visualisation):
+# matplotlib>=3.7
+# networkx>=3.1
