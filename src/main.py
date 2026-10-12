@@ -28,6 +28,7 @@ from csp.signal_csp import build_csp, compare, solve_forward_checking           
 from rules.incident_rules import (apply_facts_to_graph, build_demo_map,             # noqa: E402
                                   forward_chain)
 from rules.incident_rules import astar as astar_demo                                # noqa: E402
+import plots                                                                        # noqa: E402
 import simulate                                                                     # noqa: E402
 
 
@@ -96,6 +97,9 @@ def phase2():
     print(f"Average signal delay per junction: fixed = {sig_before:.1f} s, CSP = {sig_after:.1f} s")
     print(f"A* vs Dijkstra mismatches: {mismatches}")
     simulate.save_plot(before, after)
+
+    section("5. Pictures saved in the docs folder")
+    plots.make_all()
 
 
 def main():
