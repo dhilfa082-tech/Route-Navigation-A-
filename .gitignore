@@ -12,3 +12,5 @@ env/
 
 # Generated files (docs/report.pdf and docs/travel_time.png are kept)
 *.log
+docs/my_route.png
+docs/my_signal.png
