@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Traffic Management System</title>
+<style>
+  :root {
+    --bg: #f4f6fa; --card: #ffffff; --ink: #1d2433; --muted: #5b6577; --line: #d9dfeb;
+    --brand: #1f3a5f; --green: #1f9d6b; --amber: #e69100; --red: #cc2b2b; --blue: #9bb7e0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--brand); color: #fff; padding: 16px 22px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+  nav { display: flex; gap: 6px; padding: 12px 22px 0; }
+  nav button { border: 1px solid var(--line); border-bottom: none; background: #e6ebf4; color: var(--muted); padding: 9px 16px;
+               border-radius: 8px 8px 0 0; font-size: 14px; cursor: pointer; }
+  nav button.active { background: var(--card); color: var(--brand); font-weight: 600; }
+  main { padding: 0 22px 28px; }
+  .panel { display: none; background: var(--card); border: 1px solid var(--line); border-radius: 0 10px 10px 10px; padding: 18px; }
+  .panel.active { display: block; }
+  .layout { display: grid; grid-template-columns: 290px 1fr; gap: 18px; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+  h2 { font-size: 16px; margin: 0 0 10px; color: var(--brand); }
+  h3 { font-size: 14px; margin: 14px 0 6px; color: var(--brand); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  select, input[type=number] { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; background: #fff; color: var(--ink); }
+  input[type=range] { width: 100%; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 14px; color: var(--ink); }
+  .check input { width: 17px; height: 17px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  button.primary { margin-top: 14px; width: 100%; padding: 10px; border: 0; border-radius: 7px; background: var(--brand); color: #fff; font-size: 14px; cursor: pointer; }
+  button.primary:hover { background: #2a4d7c; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .stat { flex: 1 1 140px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 20px; color: var(--brand); }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .warn { background: #fff4e0; border: 1px solid #f0c987; color: #7a4b00; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin: 8px 0; }
+  .bad { background: #fde8e8; border: 1px solid #f2b5b5; color: #8a1c1c; }
+  .rules { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; background: #f3f5f9; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .rules div { margin: 2px 0; }
+  .explain { font-size: 14px; line-height: 1.5; }
+  svg { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfe; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 6px; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+  th { background: #e8eef7; }
+  .bars { margin-top: 8px; }
+  .barrow { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; margin: 6px 0; font-size: 13px; }
+  .track { background: #eef1f6; border-radius: 6px; height: 22px; position: relative; }
+  .fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; color: #fff; font-size: 12px; white-space: nowrap; }
+  .legend { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  footer { text-align: center; font-size: 12px; color: var(--muted); padding: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Smart Traffic Management System</h1>
+  <p>A* route navigation with CSP signal timing, rule-based incidents, expected travel time and fairness &middot; Dhilfa A (VH15152) &middot; 25ML35T</p>
+</header>
+
+<nav>
+  <button class="active" data-tab="route">Route planner</button>
+  <button data-tab="signal">Signal planner</button>
+  <button data-tab="about">About</button>
+</nav>
+
+<main>
+  <!-- ===================== ROUTE ===================== -->
+  <section class="panel active" id="route">
+    <div class="layout">
+      <div>
+        <h2>Inputs</h2>
+        <label for="start">Start place</label><select id="start"></select>
+        <label for="goal">Goal place</label><select id="goal"></select>
+        <label for="hour">Hour of day: <b id="hourLabel">08:00</b></label>
+        <input type="range" id="hour" min="0" max="23" value="8">
+        <div class="hint">Peak hours: 08-10 and 17-19. Night: 22-05.</div>
+        <label for="accident">Accident on road</label><select id="accident"></select>
+        <div class="check"><input type="checkbox" id="rain"><label for="rain" style="margin:0;color:inherit">It is raining</label></div>
+        <div class="check"><input type="checkbox" id="amb"><label for="amb" style="margin:0;color:inherit">Emergency vehicle on this route</label></div>
+        <div class="check"><input type="checkbox" id="fair" checked><label for="fair" style="margin:0;color:inherit">Avoid school and residential roads</label></div>
+        <button class="primary" id="planBtn">Plan route</button>
+      </div>
+      <div>
+        <h2>Result</h2>
+        <div id="routeStats" class="stats"></div>
+        <div id="routeMsg"></div>
+        <svg id="map" viewBox="0 0 760 420" role="img" aria-label="Road map with the chosen route"></svg>
+        <div class="legend">Green line = chosen route &middot; yellow ring = signalised junction &middot; red dashed = school / residential road &middot; red X = accident</div>
+        <h3>Rules that fired (forward chaining)</h3>
+        <div class="rules" id="ruleList"></div>
+        <h3>Explanation</h3>
+        <div class="explain" id="explainBox"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SIGNAL ===================== -->
+  <section class="panel" id="signal">
+    <div class="layout">
+      <div>
+        <h2>Junction demand</h2>
+        <label for="dNS">North-South demand (vehicles/min)</label><input type="number" id="dNS" min="1" max="100" value="20">
+        <label for="dEW">East-West demand (vehicles/min)</label><input type="number" id="dEW" min="1" max="100" value="40">
+        <label for="dTURN">Turning demand (vehicles/min)</label><input type="number" id="dTURN" min="1" max="100" value="10">
+        <div class="hint">Cycle = 90 s, lost time = 5 s, pedestrian minimum = 15 s per phase.</div>
+        <button class="primary" id="sigBtn">Plan signal</button>
+      </div>
+      <div>
+        <h2>CSP signal plan</h2>
+        <div id="sigStats" class="stats"></div>
+        <div id="sigMsg"></div>
+        <table id="sigTable"></table>
+        <h3>Green time: fixed plan vs CSP plan</h3>
+        <div class="bars" id="sigBars"></div>
+        <h3>Explanation</h3>
+        <div class="explain" id="sigExplain"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ABOUT ===================== -->
+  <section class="panel" id="about">
+    <h2>About this project</h2>
+    <div class="explain">
+      <p>This page runs the same logic as the Python project in the browser, with no server and no internet needed.</p>
+      <p><b>CSP layer:</b> green times of NS, EW and TURN are variables (15-60 s). The cycle is fixed at 90 s, every phase gets at least 15 s, and a busier phase gets at least as much green as a less busy one. Plain backtracking and forward checking are both run so you can compare the assignments tried.</p>
+      <p><b>Rule layer:</b> R1 Accident(e) &rarr; Blocked(e); R2 Rain &and; Night &rarr; SpeedFactor(0.7); R3 EmergencyVehicle(v) &rarr; GreenCorridor(route). Forward chaining fires the rules until nothing new appears, then A* plans again.</p>
+      <p><b>Uncertainty and fairness:</b> every road is LOW, MEDIUM or HIGH congestion with probabilities that depend on the hour. A* minimises the expected travel time. School and residential roads get a penalty when fairness is ON.</p>
+      <p><b>Limits:</b> the map and the data are synthetic. This is a teaching project and not a deployable traffic-control system.</p>
+    </div>
+  </section>
+</main>
+<footer>Foundations of AI (25ML35T) &middot; Innovative Assignment II &middot; Vel Tech</footer>
+
+<script>
+// =====================================================================
+//  CORE LOGIC  (same model as the Python project, seed 15152 data)
+// =====================================================================
+const COORDS = { A: [0, 0], B: [4, 1], C: [3, 5], D: [8, 2], E: [7, 6], F: [12, 4] };
+const ROADS = [
+  { a: "A", b: "B", time: 4.9745816814561135, delay: 0, sens: 1.5 },
+  { a: "A", b: "C", time: 6.356250101057809,  delay: 2, sens: 0.5 },
+  { a: "B", b: "C", time: 4.930834910310005,  delay: 3, sens: 0.5 },
+  { a: "B", b: "D", time: 5.314168904881282,  delay: 0, sens: 1.5 },
+  { a: "C", b: "E", time: 5.072241902126632,  delay: 2, sens: 0.5 },
+  { a: "D", b: "E", time: 4.3619229962109065, delay: 2, sens: 1.5 },
+  { a: "D", b: "F", time: 4.7143754444033945, delay: 3, sens: 1.5 },
+  { a: "E", b: "F", time: 6.249241484694917,  delay: 0, sens: 0.5 }
+];
+const SENSITIVE = { "A-C": "school zone", "C-E": "residential zone" };
+const SIGNALS = { B: "J1", C: "J2", D: "J3" };
+const SLOW = [1.0, 1.5, 2.2];
+const SCHOOL_PENALTY = 6.0;
+const key = (u, v) => [u, v].sort().join("-");
+const dist = (u, v) => Math.hypot(COORDS[u][0] - COORDS[v][0], COORDS[u][1] - COORDS[v][1]);
+
+function probs(h) {
+  if ((h >= 8 && h <= 10) || (h >= 17 && h <= 19)) return [0.10, 0.30, 0.60];
+  if (h >= 22 || h <= 5) return [0.80, 0.15, 0.05];
+  return [0.50, 0.35, 0.15];
+}
+function expMult(h, s) {
+  return probs(h).reduce((acc, p, i) => acc + p * (1 + s * (SLOW[i] - 1)), 0);
+}
+
+// ---------- knowledge base: facts and forward chaining ----------
+const fkey = f => JSON.stringify(f);
+function forwardChain(initial) {
+  const facts = [], seen = new Set(), trace = [];
+  initial.forEach(f => { if (!seen.has(fkey(f))) { seen.add(fkey(f)); facts.push(f); } });
+  const has = t => facts.some(f => f.t === t);
+  const rules = [
+    ["R1 Accident(e) -> Blocked(e)", () => facts.filter(f => f.t === "Accident").map(f => ({ t: "Blocked", e: f.e }))],
+    ["R2 Rain ^ Night -> SpeedFactor(0.7)", () => (has("Rain") && has("Night")) ? [{ t: "SpeedFactor", v: 0.7 }] : []],
+    ["R3 EmergencyVehicle(v) -> GreenCorridor(route)", () => {
+      const out = [];
+      facts.filter(f => f.t === "EmergencyVehicle").forEach(v =>
+        facts.filter(g => g.t === "RouteOf" && g.v === v.v).forEach(g => g.edges.forEach(e => out.push({ t: "GreenCorridor", e }))));
+      return out;
+    }]
+  ];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [name, rule] of rules) {
+      for (const nf of rule()) {
+        if (!seen.has(fkey(nf))) {
+          seen.add(fkey(nf)); facts.push(nf); changed = true;
+          trace.push(name + "  =>  derived " + factText(nf));
+        }
+      }
+    }
+  }
+  return { facts, trace };
+}
+function factText(f) {
+  if (f.t === "Blocked" || f.t === "GreenCorridor") return f.t + "(" + f.e + ")";
+  if (f.t === "SpeedFactor") return "SpeedFactor(" + f.v + ")";
+  return f.t;
+}
+
+// ---------- facts change the road costs ----------
+function applyFacts(facts) {
+  const blocked = new Set(facts.filter(f => f.t === "Blocked").map(f => f.e));
+  const green = new Set(facts.filter(f => f.t === "GreenCorridor").map(f => f.e));
+  const sf = facts.filter(f => f.t === "SpeedFactor").map(f => f.v);
+  const factor = sf.length ? Math.min(...sf) : 1.0;
+  return ROADS.filter(r => !blocked.has(key(r.a, r.b)))
+    .map(r => ({ a: r.a, b: r.b, key: key(r.a, r.b), sens: r.sens,
+                 time: r.time / factor, delay: green.has(key(r.a, r.b)) ? 0 : r.delay }));
+}
+function expectedEdges(edges, hour, avoid) {
+  return edges.map(e => {
+    const expTime = e.time * expMult(hour, e.sens) + e.delay;
+    const penalty = (avoid && SENSITIVE[e.key]) ? SCHOOL_PENALTY : 0;
+    return Object.assign({}, e, { expTime, cost: expTime + penalty });
+  });
+}
+
+// ---------- A*  (f = g + h, h = straight-line distance) ----------
+function astar(edges, start, goal) {
+  const adj = {};
+  Object.keys(COORDS).forEach(n => adj[n] = []);
+  edges.forEach(e => { adj[e.a].push([e.b, e]); adj[e.b].push([e.a, e]); });
+  const h = n => dist(n, goal);
+  let open = [{ f: h(start), g: 0, node: start, path: [start] }];
+  const best = { [start]: 0 };
+  while (open.length) {
+    open.sort((x, y) => x.f - y.f || x.g - y.g);
+    const cur = open.shift();
+    if (cur.node === goal) return cur.path;
+    if (cur.g > (best[cur.node] ?? Infinity)) continue;
+    for (const [nxt, e] of adj[cur.node]) {
+      const ng = cur.g + e.cost;
+      if (ng < (best[nxt] ?? Infinity)) {
+        best[nxt] = ng;
+        open.push({ f: ng + h(nxt), g: ng, node: nxt, path: cur.path.concat(nxt) });
+      }
+    }
+  }
+  return null;
+}
+
+function pathEdges(path) { return path.slice(1).map((n, i) => key(path[i], n)); }
+
+function planRoute(o) {
+  const base = [];
+  if (o.rain) base.push({ t: "Rain" });
+  if (o.hour >= 22 || o.hour <= 5) base.push({ t: "Night" });
+  if (o.accident) base.push({ t: "Accident", e: o.accident });
+  const run = list => {
+    const { facts, trace } = forwardChain(list);
+    const edges = applyFacts(facts);
+    const exp = expectedEdges(edges, o.hour, o.fair);
+    return { facts, trace, exp, path: astar(exp, o.start, o.goal) };
+  };
+  let r = run(base);
+  if (r.path && o.amb) {
+    const route = pathEdges(r.path);
+    r = run(base.concat([{ t: "EmergencyVehicle", v: "amb1" }, { t: "RouteOf", v: "amb1", edges: route }]));
+  }
+  if (!r.path) return Object.assign(r, { expTime: null, zones: [] });
+  const byKey = {}; r.exp.forEach(e => byKey[e.key] = e);
+  const keys = pathEdges(r.path);
+  r.expTime = keys.reduce((s, k) => s + byKey[k].expTime, 0);
+  r.zones = keys.filter(k => SENSITIVE[k]).map(k => SENSITIVE[k]);
+  r.edgeKeys = keys;
+  return r;
+}
+
+// ---------- signal CSP ----------
+const CYCLE = 90, LOST = 5, PED = 15, AVAIL = CYCLE - LOST;
+const DOM = []; for (let v = PED; v <= 60; v += 5) DOM.push(v);
+const PHASES = ["NS", "EW", "TURN"];
+
+function groupOk(vals, dem) {            // vals: array of 3, null = not assigned yet
+  const idx = [0, 1, 2].filter(i => vals[i] !== null);
+  for (const a of idx) for (const b of idx) if (dem[a] > dem[b] && vals[a] < vals[b]) return false;
+  const total = idx.reduce((s, i) => s + vals[i], 0);
+  return idx.length === 3 ? total === AVAIL : total < AVAIL;
+}
+function solvePlain(dem) {
+  let count = 0;
+  const vals = [null, null, null];
+  const bt = i => {
+    if (i === 3) return true;
+    for (const v of DOM) {
+      count++; vals[i] = v;
+      if (groupOk(vals, dem) && bt(i + 1)) return true;
+      vals[i] = null;
+    }
+    return false;
+  };
+  bt(0);
+  return count;
+}
+function solveFC(dem) {
+  let count = 0;
+  const bt = (vals, doms, i) => {
+    if (i === 3) return true;
+    for (const v of doms[i]) {
+      count++;
+      const cur = vals.slice(); cur[i] = v;
+      const nd = doms.map(d => d.slice()); nd[i] = [v];
+      let ok = groupOk(cur, dem);
+      for (let j = i + 1; ok && j < 3; j++) {
+        nd[j] = nd[j].filter(x => { const t = cur.slice(); t[j] = x; return groupOk(t, dem); });
+        if (!nd[j].length) ok = false;
+      }
+      if (ok && bt(cur, nd, i + 1)) return true;
+    }
+    return false;
+  };
+  bt([null, null, null], [DOM.slice(), DOM.slice(), DOM.slice()], 0);
+  return count;
+}
+function phaseDelay(g, flowPerMin) {
+  const lam = g / CYCLE, flow = flowPerMin / 60;
+  const x = Math.min(0.95, flow / (1.0 * lam));
+  return 0.5 * CYCLE * Math.pow(1 - lam, 2) / (1 - lam * x);
+}
+function junctionDelaySec(greens, dem) {
+  const total = dem.reduce((a, b) => a + b, 0);
+  return greens.reduce((s, g, i) => s + dem[i] * phaseDelay(g, dem[i]), 0) / total;
+}
+function planSignal(dem) {
+  let best = null, bestDelay = Infinity;
+  for (const a of DOM) for (const b of DOM) for (const c of DOM) {
+    const vals = [a, b, c];
+    if (groupOk(vals, dem)) {
+      const d = junctionDelaySec(vals, dem);
+      if (d < bestDelay) { best = vals; bestDelay = d; }
+    }
+  }
+  const fixed = [30, 30, 25];
+  return { plan: best, delay: bestDelay, fixed, fixedDelay: junctionDelaySec(fixed, dem),
+           plain: solvePlain(dem), fc: solveFC(dem) };
+}
+
+// ===== UI =====
+if (typeof document !== "undefined") {
+  const $ = id => document.getElementById(id);
+  const names = Object.keys(COORDS);
+
+  // tabs
+  document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); $(b.dataset.tab).classList.add("active");
+  }));
+
+  // fill selects
+  names.forEach(n => { $("start").add(new Option(n, n)); $("goal").add(new Option(n, n)); });
+  $("start").value = "A"; $("goal").value = "F";
+  $("accident").add(new Option("None", ""));
+  ROADS.forEach(r => $("accident").add(new Option(r.a + "-" + r.b + (SENSITIVE[key(r.a, r.b)] ? " (" + SENSITIVE[key(r.a, r.b)] + ")" : ""), key(r.a, r.b))));
+
+  const pad = n => String(n).padStart(2, "0");
+  const X = x => 50 + x * 55, Y = y => 380 - y * 55;
+
+  function drawMap(res, accident, start, goal) {
+    const onPath = new Set(res && res.path ? res.edgeKeys : []);
+    let s = "";
+    ROADS.forEach(r => {
+      const k = key(r.a, r.b);
+      const [x1, y1, x2, y2] = [X(COORDS[r.a][0]), Y(COORDS[r.a][1]), X(COORDS[r.b][0]), Y(COORDS[r.b][1])];
+      if (k === accident) {
+        s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#cc2b2b" stroke-width="4" stroke-dasharray="2 6" stroke-linecap="round"/>`;
+        s += `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 8}" text-anchor="middle" font-size="14" font-weight="700" fill="#cc2b2b">X accident</text>`;
+      } else {
+        const sens = SENSITIVE[k];
+        s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${sens ? "#e08a8a" : "#c3c9d6"}" stroke-width="${sens ? 3 : 3}" ${sens ? 'stroke-dasharray="8 6"' : ""}/>`;
+        if (sens) s += `<text x="${(x1 + x2) / 2 - 8}" y="${(y1 + y2) / 2 - 6}" text-anchor="end" font-size="12" fill="#cc2b2b">${sens}</text>`;
+      }
+      if (onPath.has(k)) s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#1f9d6b" stroke-width="7" stroke-linecap="round" opacity=".9"/>`;
+    });
+    names.forEach(n => {
+      const x = X(COORDS[n][0]), y = Y(COORDS[n][1]);
+      if (SIGNALS[n]) s += `<circle cx="${x}" cy="${y}" r="23" fill="none" stroke="#f2a900" stroke-width="4"/><text x="${x}" y="${y + 40}" text-anchor="middle" font-size="12" fill="#5b6577">signal ${SIGNALS[n]}</text>`;
+      const fill = n === start ? "#1f9d6b" : n === goal ? "#cc2b2b" : "#9bb7e0";
+      s += `<circle cx="${x}" cy="${y}" r="16" fill="${fill}" stroke="#1d2433" stroke-width="1.5"/><text x="${x}" y="${y + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="${n === start || n === goal ? "#fff" : "#1d2433"}">${n}</text>`;
+      if (n === start) s += `<text x="${x}" y="${y - 24}" text-anchor="middle" font-size="12" font-weight="700" fill="#1f9d6b">START</text>`;
+      if (n === goal) s += `<text x="${x}" y="${y - 24}" text-anchor="middle" font-size="12" font-weight="700" fill="#cc2b2b">GOAL</text>`;
+    });
+    $("map").innerHTML = s;
+  }
+
+  function renderRoute() {
+    const o = { start: $("start").value, goal: $("goal").value, hour: +$("hour").value, rain: $("rain").checked,
+                accident: $("accident").value, amb: $("amb").checked, fair: $("fair").checked };
+    $("hourLabel").textContent = pad(o.hour) + ":00";
+    const msg = $("routeMsg"); msg.innerHTML = "";
+    if (o.start === o.goal) {
+      $("routeStats").innerHTML = ""; $("ruleList").innerHTML = ""; $("explainBox").innerHTML = "";
+      msg.innerHTML = '<div class="warn bad">Goal must be different from the start.</div>';
+      drawMap(null, o.accident, o.start, o.goal); return;
+    }
+    const r = planRoute(o);
+    // normal conditions for comparison (same hour and fairness, no incident, no rain)
+    const n = planRoute({ start: o.start, goal: o.goal, hour: o.hour, rain: false, accident: "", amb: false, fair: o.fair });
+    drawMap(r, o.accident, o.start, o.goal);
+    $("ruleList").innerHTML = r.trace.length ? r.trace.map(t => `<div>${t}</div>`).join("") : "<div>(no rule fired)</div>";
+    if (!r.path) {
+      $("routeStats").innerHTML = "";
+      msg.innerHTML = `<div class="warn bad">No route exists from ${o.start} to ${o.goal} with these road closures.</div>`;
+      $("explainBox").innerHTML = "The accident cut the goal off from the start, so A* found no path.";
+      return;
+    }
+    const diff = n.path ? r.expTime - n.expTime : 0;
+    $("routeStats").innerHTML =
+      `<div class="stat"><b>${r.path.join(" → ")}</b><span>Chosen route</span></div>` +
+      `<div class="stat"><b>${r.expTime.toFixed(1)} min</b><span>Expected travel time</span></div>` +
+      `<div class="stat"><b>${diff >= 0 ? "+" : ""}${diff.toFixed(1)} min</b><span>Change vs the normal-day route (${n.path ? n.path.join("-") : "-"}, ${n.expTime ? n.expTime.toFixed(1) : "-"} min)</span></div>`;
+    if (r.zones.length) msg.innerHTML = `<div class="warn">Warning: this route crosses the ${r.zones.join(" and ")}${o.fair ? " (no better alternative was available)" : ". Turn on fairness to avoid it if possible"}.</div>`;
+    const p = probs(o.hour);
+    $("explainBox").innerHTML =
+      `At ${pad(o.hour)}:00 the congestion probabilities are LOW = ${p[0].toFixed(2)}, MEDIUM = ${p[1].toFixed(2)}, HIGH = ${p[2].toFixed(2)}.<br>` +
+      `Route <b>${r.path.join(" → ")}</b> has the lowest expected travel cost (expected time ${r.expTime.toFixed(1)} min).<br>` +
+      (r.zones.length ? `It crosses the ${r.zones.join(" and ")}.` : "It avoids school and residential zones.") + `<br>` +
+      `A* with f = g + h found the minimum-cost path on the updated map.`;
+  }
+
+  function renderSignal() {
+    const dem = [+$("dNS").value, +$("dEW").value, +$("dTURN").value];
+    const msg = $("sigMsg"); msg.innerHTML = "";
+    if (dem.some(v => !(v >= 1 && v <= 100))) {
+      msg.innerHTML = '<div class="warn bad">Please enter whole numbers from 1 to 100 for every demand.</div>'; return;
+    }
+    const r = planSignal(dem);
+    const gain = (1 - r.delay / r.fixedDelay) * 100;
+    $("sigStats").innerHTML =
+      `<div class="stat"><b>${r.delay.toFixed(1)} s</b><span>Average delay, CSP plan</span></div>` +
+      `<div class="stat"><b>${r.fixedDelay.toFixed(1)} s</b><span>Average delay, fixed plan 30/30/25</span></div>` +
+      `<div class="stat"><b>${gain.toFixed(1)}%</b><span>Delay reduction</span></div>` +
+      `<div class="stat"><b>${r.plain} vs ${r.fc}</b><span>Assignments: plain backtracking vs forward checking</span></div>`;
+    $("sigTable").innerHTML = "<tr><th>Phase</th><th>Demand (veh/min)</th><th>CSP green (s)</th><th>Fixed green (s)</th></tr>" +
+      PHASES.map((p, i) => `<tr><td>${p}</td><td>${dem[i]}</td><td><b>${r.plan[i]}</b></td><td>${r.fixed[i]}</td></tr>`).join("") +
+      `<tr><td colspan="2">Total with ${LOST} s lost time</td><td>${r.plan.reduce((a, b) => a + b, 0) + LOST} s</td><td>${r.fixed.reduce((a, b) => a + b, 0) + LOST} s</td></tr>`;
+    $("sigBars").innerHTML = PHASES.map((p, i) =>
+      `<div class="barrow"><div>${p} (d=${dem[i]})</div><div>` +
+      `<div class="track" style="margin-bottom:4px"><div class="fill" style="width:${r.fixed[i] / 60 * 100}%;background:#9aa3b5">fixed ${r.fixed[i]}s</div></div>` +
+      `<div class="track"><div class="fill" style="width:${r.plan[i] / 60 * 100}%;background:#1f9d6b">CSP ${r.plan[i]}s</div></div></div></div>`).join("");
+    const order = [0, 1, 2].sort((a, b) => dem[b] - dem[a]);
+    $("sigExplain").innerHTML =
+      `Cycle ${CYCLE} s, ${LOST} s lost to yellow/all-red, so ${AVAIL} s of green are shared.<br>` +
+      order.map(i => `${PHASES[i]}: ${r.plan[i]} s green for demand ${dem[i]} veh/min (never below the ${PED} s pedestrian minimum).`).join("<br>") + "<br>" +
+      `The busiest approach (${PHASES[order[0]]}) gets at least as much green as any less busy approach (priority constraint).<br>` +
+      `Forward checking tried ${r.fc} assignments while plain backtracking tried ${r.plain}.`;
+  }
+
+  ["start", "goal", "hour", "accident", "rain", "amb", "fair"].forEach(id => $(id).addEventListener("input", renderRoute));
+  $("planBtn").addEventListener("click", renderRoute);
+  ["dNS", "dEW", "dTURN"].forEach(id => $(id).addEventListener("input", renderSignal));
+  $("sigBtn").addEventListener("click", renderSignal);
+  renderRoute(); renderSignal();
+}
+if (typeof module !== "undefined") module.exports = { planRoute, planSignal, key };
+</script>
+</body>
+</html>
